@@ -248,6 +248,26 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
+class _NoOpSummaryWriter:
+    def add_scalar(self, *args, **kwargs) -> None:
+        pass
+
+    def close(self) -> None:
+        pass
+
+
+def create_summary_writer(tf_events_dir: str):
+    try:
+        from torch.utils.tensorboard import SummaryWriter
+    except ModuleNotFoundError as exc:
+        if exc.name != 'tensorboard':
+            raise
+        logging.warning("tensorboard is not installed; TensorBoard event logging is disabled.")
+        return _NoOpSummaryWriter()
+
+    return SummaryWriter(tf_events_dir)
+
+
 def main() -> None:
     args = parse_args()
 
@@ -261,8 +281,7 @@ def main() -> None:
     create_logger(os.path.join(args.log_dir, 'train.log'))
     logging.info(f"Args: {vars(args)}")
 
-    from torch.utils.tensorboard import SummaryWriter
-    writer = SummaryWriter(args.tf_events_dir)
+    writer = create_summary_writer(args.tf_events_dir)
 
     # ---- Data loading ----
     if args.schema_path:
